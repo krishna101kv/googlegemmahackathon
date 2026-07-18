@@ -9,6 +9,7 @@ import {
   computeObjectiveMetrics,
   reconcileFillerScore,
 } from "@/lib/metrics";
+import { countFillersRough } from "@/lib/asr";
 
 const SCORE_LABELS: Record<keyof SessionRecord["scores"], string> = {
   clarity: "Clarity",
@@ -30,6 +31,7 @@ export function SessionReviewView({ session }: { session: SessionRecord }) {
     session.transcript,
     session.durationSeconds,
   );
+  const fillerHits = countFillersRough(session.transcript);
 
   async function onDelete() {
     if (!confirm("Delete this session, including the recording and transcript?")) {
@@ -99,6 +101,10 @@ export function SessionReviewView({ session }: { session: SessionRecord }) {
           </p>
         )}
         <p className="transcript">{session.transcript || "(No transcript returned.)"}</p>
+        <p className="subtle" style={{ marginTop: "0.75rem" }}>
+          Verbatim ASR keeps fillers in the text (um/uh/like…). Spotted in
+          transcript: ~{fillerHits}. Code metric count: {session.fillerWordCount}.
+        </p>
       </section>
 
       <section className="block metrics">
