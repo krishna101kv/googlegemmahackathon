@@ -1,4 +1,16 @@
 import {
+  ASR_SYSTEM_PROMPT,
+  VERBATIM_ASR_PROMPT,
+  countFillersRough,
+  isPromptContaminated,
+  isUsableTranscript,
+  normalizeAsrOutput,
+  pickBestTranscript,
+  sliceWavPcm16Mono,
+  stitchChunkTranscripts,
+  stripPromptContamination,
+} from "./asr";
+import {
   coachEvaluationSchema,
   ollamaFormatSchema,
   type CoachEvaluationParsed,
@@ -10,21 +22,12 @@ import { GOAL_LABELS, SPEECH_TYPE_LABELS } from "./types";
 
 const OLLAMA_BASE_URL =
   process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
-// Text coaching can stay on E4B; ASR on current Ollama builds is much more
-// reliable on gemma4:12b (E4B often collapses into "lo lo lo" / phrase loops).
+// Text coaching can stay on E4B; ASR prefers gemma4:12b.
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma4:latest";
 const OLLAMA_ASR_MODEL =
   process.env.OLLAMA_ASR_MODEL ?? "gemma4:12b";
 const ASR_MODEL_CANDIDATES = [
-  ...new Set(
-    [
-      OLLAMA_ASR_MODEL,
-      "gemma4:12b",
-      OLLAMA_MODEL,
-      "gemma4:latest",
-      "gemma4:e4b",
-    ].filter(Boolean),
-  ),
+  ...new Set([OLLAMA_ASR_MODEL, "gemma4:12b"].filter(Boolean)),
 ];
 const GOOGLE_API_KEY =
   process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? "";
@@ -36,12 +39,6 @@ const INFERENCE_MODE = (process.env.INFERENCE_MODE ?? "local") as
   | "auto";
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS ?? 180_000);
 const MAX_RETRIES = Number(process.env.AI_MAX_RETRIES ?? 1);
-
-const ASR_PROMPT = `Transcribe the following speech segment in English into English text.
-Follow these specific instructions for formatting the answer:
-* Only output the transcription, with no newlines.
-* When transcribing numbers, write the digits, i.e. write 1.7 and not one point seven, and write 3 instead of three.
-* If the audio is silent or unintelligible, output exactly: NO_SPEECH`;
 
 export function buildCoachSystemPrompt(): string {
   return `You are a supportive Toastmasters-style speech coach.
@@ -139,62 +136,131 @@ async function ollamaChat(body: Record<string, unknown>): Promise<string> {
   }
 }
 
-function normalizeAsrOutput(raw: string): string {
-  return raw
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/^transcript\s*:\s*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+async function asrOnce(
+  model: string,
+  wavBase64: string,
+  numPredict = 512,
+): Promise<string> {
+  const raw = await ollamaChat({
+    model,
+    stream: false,
+    think: false,
+    keep_alive: "20m",
+    messages: [
+      { role: "system", content: ASR_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: VERBATIM_ASR_PROMPT,
+        images: [wavBase64],
+      },
+    ],
+    options: {
+      temperature: 0,
+      top_p: 0.8,
+      top_k: 10,
+      num_ctx: 8192,
+      num_predict: numPredict,
+      // Keep modest — high repeat_penalty suppresses um/uh
+      repeat_penalty: 1.08,
+    },
+  });
+  return stripPromptContamination(normalizeAsrOutput(raw));
 }
 
-async function transcribeWithOllama(wavBase64: string): Promise<string> {
+async function transcribeChunks(
+  model: string,
+  wav: Buffer,
+  durationSeconds: number,
+): Promise<string> {
+  // Longer chunks bind audio more reliably on Ollama+Gemma
+  const chunkLen = 8;
+  const overlap = 1.5;
+  const parts: string[] = [];
+
+  for (let start = 0; start < durationSeconds; start += chunkLen - overlap) {
+    const dur = Math.min(chunkLen, durationSeconds - start);
+    if (dur < 2) break;
+    const slice = sliceWavPcm16Mono(wav, start, dur);
+    try {
+      const text = await asrOnce(
+        model,
+        slice.toString("base64"),
+        Math.min(400, Math.ceil(dur * 14)),
+      );
+      const cleaned = stripPromptContamination(text);
+      if (isUsableTranscript(cleaned) && !isPromptContaminated(cleaned)) {
+        parts.push(cleaned);
+      } else {
+        console.warn(
+          `[gemma-asr] drop chunk ${start.toFixed(1)}-${(start + dur).toFixed(1)}: ${cleaned.slice(0, 80)}`,
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `[gemma-asr] chunk ${start}-${start + dur} failed:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  return stitchChunkTranscripts(parts);
+}
+
+async function transcribeWithOllama(wav: Buffer): Promise<string> {
   let lastError: Error | null = null;
+  const durationSeconds = (wav.length - 44) / 32000;
+  // ~3 tokens/word, ~2.5 words/sec speech → generous budget
+  const fullPredict = Math.min(1200, Math.max(256, Math.ceil(durationSeconds * 12)));
 
   for (const model of ASR_MODEL_CANDIDATES) {
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const raw = await ollamaChat({
-          model,
-          stream: false,
-          think: false,
-          messages: [
-            {
-              role: "user",
-              content: ASR_PROMPT,
-              images: [wavBase64],
-            },
-          ],
-          options: {
-            temperature: 0.0,
-            top_p: 0.9,
-            top_k: 20,
-            num_ctx: 8192,
-            num_predict: 512,
-            repeat_penalty: 1.4,
-          },
-        });
+    try {
+      const candidates: string[] = [];
 
-        const transcript = normalizeAsrOutput(raw);
-        if (!transcript || /^no[_\s-]?speech$/i.test(transcript)) {
-          throw new Error("NO_SPEECH");
+      // 1) Full-pass verbatim
+      try {
+        const full = stripPromptContamination(
+          await asrOnce(model, wav.toString("base64"), fullPredict),
+        );
+        if (isUsableTranscript(full) && !isPromptContaminated(full)) {
+          candidates.push(full);
+        } else {
+          throw new Error(`Unusable full ASR: ${full.slice(0, 100)}`);
         }
-        if (isLoopedOrGibberishTranscript(transcript)) {
-          throw new Error(
-            `Looped ASR output from ${model}: ${transcript.slice(0, 80)}…`,
-          );
-        }
-        console.info(`[gemma-asr] ok via ${model}`);
-        return transcript;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.warn(`[gemma-asr] ${model} attempt ${attempt}:`, lastError.message);
+        console.warn(`[gemma-asr] full via ${model}:`, lastError.message);
       }
+
+      // 2) Overlapping chunks — better for long / prompt-heavy clips
+      if (durationSeconds > 6) {
+        const stitched = stripPromptContamination(
+          await transcribeChunks(model, wav, durationSeconds),
+        );
+        if (isUsableTranscript(stitched) && !isPromptContaminated(stitched)) {
+          candidates.push(stitched);
+        }
+      }
+
+      const best = pickBestTranscript(candidates);
+      if (best) {
+        const finalText = stripPromptContamination(best);
+        if (isPromptContaminated(finalText)) {
+          throw new Error("Transcript still contains ASR instructions");
+        }
+        console.info(
+          `[gemma-asr] ok via ${model}; fillers≈${countFillersRough(finalText)}; words=${finalText.split(/\s+/).length}`,
+        );
+        return finalText;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`[gemma-asr] ${model}:`, lastError.message);
     }
   }
 
   throw new Error(
     lastError?.message?.includes("Looped") || lastError?.message === "NO_SPEECH"
-      ? "Could not reliably transcribe this audio. Try a clearer, louder recording under 28 seconds (local E4B ASR may loop; gemma4:12b is preferred)."
+      ? "Could not reliably transcribe this audio. Re-record clearly under 28 seconds; ensure gemma4:12b is pulled in Ollama."
       : (lastError?.message ?? "Transcription failed."),
   );
 }
@@ -246,16 +312,25 @@ async function coachFromTranscriptWithOllama(
 }
 
 async function evaluateLocalTwoStage(
-  wavBase64: string,
+  wav: Buffer,
   speechType: SpeechType,
   goal: PracticeGoal,
 ): Promise<CoachEvaluationParsed> {
-  const transcript = await transcribeWithOllama(wavBase64);
+  const transcript = await transcribeWithOllama(wav);
   const evaluation = await coachFromTranscriptWithOllama(
     transcript,
     speechType,
     goal,
   );
+  // Confidence from ASR richness, not the coach model's self-report
+  const fillers = countFillersRough(transcript);
+  const words = transcript.split(/\s+/).length;
+  evaluation.transcriptionConfidence =
+    words >= 20 && !isLoopedOrGibberishTranscript(transcript)
+      ? fillers > 0 || words >= 40
+        ? "high"
+        : "medium"
+      : "low";
   return evaluation;
 }
 
@@ -296,7 +371,7 @@ If transcription would loop or is unintelligible, set transcript to NO_SPEECH an
             parts: [
               { inlineData: { mimeType: "audio/wav", data: wavBase64 } },
               {
-                text: `${ASR_PROMPT}
+                text: `${VERBATIM_ASR_PROMPT}
 
 Then evaluate the speech and return coaching JSON. Speech type: ${SPEECH_TYPE_LABELS[speechType]}. Goal: ${GOAL_LABELS[goal]}.`,
               },
@@ -357,18 +432,8 @@ export async function evaluateSpeechWithGemma(params: {
 
   const mode = params.preferMode ?? INFERENCE_MODE;
 
-  const runLocal = async () => {
-    const evaluation = await evaluateLocalTwoStage(
-      wavBase64,
-      params.speechType,
-      params.goal,
-    );
-    // If ASR was weak but somehow passed, force low confidence on short text
-    if (evaluation.transcript.split(/\s+/).length < 12) {
-      evaluation.transcriptionConfidence = "low";
-    }
-    return evaluation;
-  };
+  const runLocal = async () =>
+    evaluateLocalTwoStage(prepared.wav, params.speechType, params.goal);
 
   if (mode === "cloud") {
     const evaluation = await callGoogleAiStudioOnce(
