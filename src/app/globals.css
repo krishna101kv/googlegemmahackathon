@@ -223,12 +223,12 @@ input {
 
 .btn {
   border: 0;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 0.8rem 1.2rem;
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .btn:hover:not(:disabled) {
@@ -236,7 +236,7 @@ input {
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -247,6 +247,7 @@ input {
 
 .btn.primary:hover:not(:disabled) {
   background: var(--teal-deep);
+  box-shadow: 0 8px 24px rgba(16, 163, 127, 0.3);
 }
 
 .btn.danger {
@@ -500,6 +501,33 @@ input {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+@keyframes ocean-wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.btn.loading {
+  background: linear-gradient(
+    90deg,
+    var(--teal) 0%,
+    rgba(16, 163, 127, 0.6) 25%,
+    var(--teal) 50%,
+    rgba(16, 163, 127, 0.6) 75%,
+    var(--teal) 100%
+  );
+  background-size: 200% 100%;
+  animation: ocean-wave 2s ease-in-out infinite;
+  color: white;
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {

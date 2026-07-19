@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GemmaProject - Architecture Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #10a37f;
+            --secondary-color: #0e8b6a;
+            --bg-dark: #0d0e1e;
+            --bg-light: #1a1b2e;
+            --text-primary: #ffffff;
+            --text-secondary: #d4d4d8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --code-bg: rgba(0, 0, 0, 0.3);
+            --accent: #ec4899;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-light) 50%, var(--bg-dark) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(16, 163, 127, 0.1) 0%, rgba(14, 139, 106, 0.05) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            margin-bottom: 3rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .meta-label {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .meta-value {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: rgba(26, 27, 46, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        .toc-title {
+            font-size: 0.95em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-list li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-list a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+            display: block;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .toc-list a:hover {
+            color: var(--primary-color);
+            background: rgba(16, 163, 127, 0.1);
+            padding-left: 1rem;
+        }
+
+        .toc-list li ul {
+            list-style: none;
+            margin-left: 0.75rem;
+            padding-top: 0.5rem;
+            border-left: 2px solid var(--border-color);
+            padding-left: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .toc-list li ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .toc-list li ul a {
+            font-size: 0.85em;
+        }
+
+        .content {
+            background: rgba(26, 27, 46, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        h2 {
+            font-size: 2em;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        h3 {
+            font-size: 1.5em;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h4 {
+            font-size: 1.15em;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent);
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        ul, ol {
+            margin: 1rem 0 1rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            background: var(--code-bg);
+            color: var(--primary-color);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        pre code {
+            background: none;
+            color: var(--primary-color);
+            padding: 0;
+        }
+
+        .highlight {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(16, 163, 127, 0.1);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: rgba(16, 163, 127, 0.05);
+        }
+
+        .diagram {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+            color: var(--primary-color);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: rgba(26, 27, 46, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary-color);
+            background: rgba(16, 163, 127, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .feature-card h4 {
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            font-size: 0.95em;
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1rem;
+            margin: 1.5rem 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .emoji {
+            margin-right: 0.5rem;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-color);
+            color: var(--bg-dark);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            font-weight: 700;
+            font-size: 1.5em;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(16, 163, 127, 0.3);
+        }
+
+        .back-to-top:hover {
+            background: var(--secondary-color);
+            box-shadow: 0 8px 20px rgba(16, 163, 127, 0.4);
+        }
+
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .section-badge {
+            display: inline-block;
+            background: rgba(16, 163, 127, 0.15);
+            color: var(--primary-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        @media (max-width: 1024px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                max-height: none;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .content {
+                padding: 1.5rem;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            h3 {
+                font-size: 1.2em;
+            }
+
+            .meta {
+                gap: 1rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            pre {
+                padding: 1rem;
+                font-size: 0.8em;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 GemmaProject</h1>
+            <p>Architecture Documentation</p>
+            <p><em>Stagecraft — Personal Toastmasters Coach</em></p>
+            <div class="meta">
+                <div class="meta-item">
+                    <span class="meta-label">Version:</span>
+                    <span class="meta-value">0.1.0</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Last Updated:</span>
+                    <span class="meta-value">2026-07-18</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Status:</span>
+                    <span class="meta-value">Active Development</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <div class="toc-title">📑 Table of Contents</div>
+                <ul class="toc-list">
+                    <li><a href="#executive-summary">Executive Summary</a></li>
+                    <li><a href="#system-overview">System Overview</a></li>
+                    <li><a href="#architecture-diagram">Architecture Diagram</a></li>
+                    <li><a href="#technology-stack">Technology Stack</a></li>
+                    <li><a href="#directory-structure">Directory Structure</a></li>
+                    <li><a href="#core-components">Core Components</a>
+                        <ul>
+                            <li><a href="#audio-recorder">AudioRecorder</a></li>
+                            <li><a href="#practice-panel">PracticePanel</a></li>
+                            <li><a href="#session-review">SessionReviewView</a></li>
+                            <li><a href="#progress-dashboard">ProgressDashboard</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#data-flow">Data Flow</a></li>
+                    <li><a href="#database-schema">Database Schema</a></li>
+                    <li><a href="#api-endpoints">API Endpoints</a></li>
+                    <li><a href="#audio-pipeline">Audio Processing</a></li>
+                    <li><a href="#inference-engines">Inference Engines</a></li>
+                    <li><a href="#deployment">Deployment</a></li>
+                    <li><a href="#error-handling">Error Handling</a></li>
+                    <li><a href="#performance">Performance</a></li>
+                    <li><a href="#security">Security & Privacy</a></li>
+                </ul>
+            </aside>
+
+            <main class="content">
+                <!-- Executive Summary -->
+                <section id="executive-summary">
+                    <h2><span class="emoji">📋</span>Executive Summary</h2>
+                    <p><strong>Stagecraft</strong> is a local-first speech coaching application built with Next.js and powered by Gemma 4 native audio understanding. It records user speeches, transcribes them, and provides real-time AI-driven coaching feedback using Toastmasters-standard rubrics. The application prioritizes privacy by running on local infrastructure (Ollama) while maintaining optional cloud fallback capabilities.</p>
+
+                    <h3>Key Features</h3>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>🎤 Browser Recording</h4>
+                            <p>Real-time audio capture with visualization and quality checks</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🤖 Dual Inference</h4>
+                            <p>Local Ollama + cloud Gemini fallback for reliability</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>📊 Objective Metrics</h4>
+                            <p>WPM, filler words, pace categorization, and more</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>📈 Progress Tracking</h4>
+                            <p>Historical session review with trends and analysis</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🎯 Goal-Based Coaching</h4>
+                            <p>Personalized focus areas and drill recommendations</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>💾 Local Storage</h4>
+                            <p>SQLite database with WAV audio archiving</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- System Overview -->
+                <section id="system-overview">
+                    <h2><span class="emoji">🔍</span>System Overview</h2>
+                    <p>The system follows a clean pipeline from audio capture through AI evaluation to persistent storage:</p>
+
+                    <div class="diagram">User Records Speech
+        ↓
+Browser MediaRecorder (WebM/Ogg)
+        ↓
+Client-side WAV Conversion (16kHz mono)
+        ↓
+POST /api/analyze (base64 WAV payload)
+        ↓
+Server: Audio Preparation (normalization, amplification, trimming)
+        ↓
+Branch: Local Ollama OR Cloud Gemini
+        ├→ Ollama: Transcribe + Evaluate (two-stage)
+        └→ Gemini: Transcribe + Evaluate (unified)
+        ↓
+Structured Coaching Evaluation (Zod validated)
+        ↓
+Objective Metrics Computation
+        ↓
+SQLite Session + Goal Storage
+        ↓
+Return Coaching Data to UI
+        ↓
+Display Results & Progress Tracking</div>
+
+                    <h3>Core Responsibilities</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Responsibility</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Frontend (React)</strong></td>
+                                <td>Audio capture, real-time visualization, session review UI</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Next.js API Routes</strong></td>
+                                <td>Request validation, orchestration, response formatting</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Audio Processing</strong></td>
+                                <td>WAV encoding, normalization, quality checks</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LLM Inference</strong></td>
+                                <td>Transcription, coaching evaluation, structured output</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Database (SQLite)</strong></td>
+                                <td>Session persistence, goal tracking, user preferences</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Storage</strong></td>
+                                <td>WAV file archiving, session history</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <!-- Technology Stack -->
+                <section id="technology-stack">
+                    <h2><span class="emoji">⚙️</span>Technology Stack</h2>
+
+                    <h3>Frontend</h3>
+                    <ul>
+                        <li><strong>Framework:</strong> Next.js 16.2.10 (App Router, React 19.2.4)</li>
+                        <li><strong>Styling:</strong> Tailwind CSS v4 with PostCSS</li>
+                        <li><strong>Data Visualization:</strong> Recharts 3.9.2</li>
+                        <li><strong>Type System:</strong> TypeScript 5.x</li>
+                        <li><strong>Validation:</strong> Zod 4.4.3</li>
+                    </ul>
+
+                    <h3>Backend</h3>
+                    <ul>
+                        <li><strong>Runtime:</strong> Node.js (Next.js ServerFunctions + API Routes)</li>
+                        <li><strong>Database:</strong> SQLite 3 with WAL (better-sqlite3 12.11.1)</li>
+                        <li><strong>Audio Processing:</strong> Web Audio API (browser) + WAV parsing (Node.js)</li>
+                        <li><strong>LLM Orchestration:</strong> Ollama + Google Generative AI SDK</li>
+                    </ul>
+
+                    <h3>Infrastructure</h3>
+                    <ul>
+                        <li><strong>Local Inference:</strong> Ollama (gemma4:e4b or gemma4:12b)</li>
+                        <li><strong>Cloud Fallback:</strong> Google AI Studio (Gemini models)</li>
+                        <li><strong>Storage:</strong> Local filesystem (data/audio/) + SQLite</li>
+                    </ul>
+                </section>
+
+                <!-- Architecture Diagram -->
+                <section id="architecture-diagram">
+                    <h2><span class="emoji">📐</span>Architecture Diagram</h2>
+                    <blockquote>
+                        See the full ASCII diagram in <a href="ARCHITECTURE.md" style="color: var(--primary-color); text-decoration: underline;">ARCHITECTURE.md</a>. This HTML version includes all the details in tabular and narrative form below.
+                    </blockquote>
+                </section>
+
+                <!-- Directory Structure -->
+                <section id="directory-structure">
+                    <h2><span class="emoji">📁</span>Directory Structure</h2>
+                    <pre><code>GemmaProject/
+├── src/
+│   ├── app/                          # Next.js App Router
+│   │   ├── api/
+│   │   │   ├── analyze/route.ts      # Main coaching endpoint
+│   │   │   ├── audio/[id]/route.ts   # Audio file serving
+│   │   │   ├── goals/route.ts        # Goal CRUD
+│   │   │   ├── sessions/route.ts     # Session management
+│   │   │   └── health/route.ts       # Liveness check
+│   │   ├── goals/page.tsx            # Goal management UI
+│   │   ├── history/page.tsx          # Session history UI
+│   │   ├── progress/page.tsx         # Metrics & trends
+│   │   ├── sessions/[id]/page.tsx    # Session review UI
+│   │   ├── settings/page.tsx         # User settings UI
+│   │   └── globals.css               # Global styles
+│   │
+│   ├── components/                   # Reusable React components
+│   │   ├── AudioRecorder.tsx         # MediaRecorder wrapper
+│   │   ├── PracticePanel.tsx         # Main recording UI
+│   │   ├── SessionReviewView.tsx     # Detailed feedback UI
+│   │   ├── ProgressDashboard.tsx     # Metrics visualization
+│   │   └── ... (4+ additional components)
+│   │
+│   └── lib/                          # Shared utilities & business logic
+│       ├── asr.ts                    # Transcription utilities
+│       ├── audioPrep.ts              # WAV preprocessing
+│       ├── db.ts                     # SQLite operations
+│       ├── gemma.ts                  # LLM orchestration
+│       ├── metrics.ts                # Objective metrics
+│       ├── schema.ts                 # Zod validation
+│       ├── types.ts                  # TypeScript interfaces
+│       └── wav.ts                    # WAV encoding/decoding
+│
+├── scripts/                          # Development & automation
+├── data/                             # Runtime data (git-ignored)
+├── package.json
+└── ARCHITECTURE.md</code></pre>
+                </section>
+
+                <!-- Core Components -->
+                <section id="core-components">
+                    <h2><span class="emoji">🧩</span>Core Components</h2>
+
+                    <div id="audio-recorder">
+                        <h3>1. AudioRecorder Component</h3>
+                        <p><span class="section-badge">Browser Component</span></p>
+                        <p>Captures audio from user's microphone via <code>MediaRecorder</code> API.</p>
+                        <ul>
+                            <li>Automatic codec selection (WebM Opus)</li>
+                            <li>Real-time elapsed time display</li>
+                            <li>Error handling for permission denial</li>
+                            <li>Resource cleanup on unmount</li>
+                        </ul>
+                    </div>
+
+                    <div id="practice-panel">
+                        <h3>2. PracticePanel Component</h3>
+                        <p><span class="section-badge">Main UI Component</span></p>
+                        <p>Orchestrates the main recording & submission UI.</p>
+                        <ul>
+                            <li>Speech type selection (prepared, table_topics, evaluation, interview_pitch)</li>
+                            <li>Optional coaching goal selection</li>
+                            <li>Inference mode toggle (local/cloud/auto)</li>
+                            <li>Real-time audio preview playback</li>
+                            <li>Loading state with animations</li>
+                            <li>Error display and retry logic</li>
+                        </ul>
+                    </div>
+
+                    <div id="session-review">
+                        <h3>3. SessionReviewView Component</h3>
+                        <p><span class="section-badge">Results Display</span></p>
+                        <p>Displays coaching feedback and objective metrics.</p>
+                        <ul>
+                            <li>Transcript display with filler word highlighting</li>
+                            <li>Rubric scores (1-5 scales)</li>
+                            <li>Strengths, improvement areas, and drills</li>
+                            <li>Historical comparison capabilities</li>
+                            <li>Audio playback controls</li>
+                        </ul>
+                    </div>
+
+                    <div id="progress-dashboard">
+                        <h3>4. ProgressDashboard Component</h3>
+                        <p><span class="section-badge">Analytics Component</span></p>
+                        <p>Visualizes trends over time using Recharts.</p>
+                        <ul>
+                            <li>Line chart: Overall scores over sessions</li>
+                            <li>Bar chart: Rubric category performance</li>
+                            <li>Statistics: Improvement rate, consistency metrics</li>
+                            <li>Filters by goal or speech type</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Data Flow -->
+                <section id="data-flow">
+                    <h2><span class="emoji">🔄</span>Data Flow</h2>
+                    <p>The complete end-to-end flow from recording to feedback:</p>
+
+                    <ol>
+                        <li><strong>User Interface:</strong> User selects speech type, goal, and mode</li>
+                        <li><strong>Audio Capture:</strong> MediaRecorder captures WebM/Ogg blob</li>
+                        <li><strong>Audio Conversion:</strong> Browser converts to 16kHz mono WAV</li>
+                        <li><strong>Request Submission:</strong> POST to /api/analyze with base64 payload</li>
+                        <li><strong>Server Validation:</strong> Verify RIFF header and payload size</li>
+                        <li><strong>Audio Preprocessing:</strong> Parse chunks, mix to mono, amplify, trim</li>
+                        <li><strong>LLM Inference:</strong> Branch to local Ollama or cloud Gemini</li>
+                        <li><strong>Metrics Computation:</strong> Calculate WPM, filler rate, pace category</li>
+                        <li><strong>Database Persistence:</strong> Save session and audio file</li>
+                        <li><strong>Response to Client:</strong> Return coaching data as JSON</li>
+                        <li><strong>UI Rendering:</strong> Display SessionReviewView with results</li>
+                    </ol>
+                </section>
+
+                <!-- Database Schema -->
+                <section id="database-schema">
+                    <h2><span class="emoji">🗄️</span>Database Schema</h2>
+
+                    <h3>Users Table</h3>
+                    <pre><code>CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);</code></pre>
+
+                    <h3>Sessions Table</h3>
+                    <p>Stores all speech coaching sessions with results and metrics.</p>
+                    <pre><code>CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  speech_type TEXT NOT NULL,
+  goal TEXT NOT NULL,
+  audio_path TEXT,
+  transcript TEXT NOT NULL,
+  inference_mode TEXT NOT NULL,
+  duration_seconds REAL NOT NULL,
+  word_count INTEGER NOT NULL,
+  words_per_minute INTEGER NOT NULL,
+  filler_word_count INTEGER NOT NULL,
+  filler_words_per_minute REAL NOT NULL,
+  pace_category TEXT NOT NULL,
+  overall_score INTEGER NOT NULL,
+  scores_json TEXT NOT NULL,
+  strengths_json TEXT NOT NULL,
+  improvement_areas_json TEXT NOT NULL,
+  drills_json TEXT NOT NULL,
+  next_focus_area TEXT NOT NULL,
+  transcription_confidence TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);</code></pre>
+
+                    <h3>Goals Table</h3>
+                    <pre><code>CREATE TABLE goals (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  completed_at TEXT
+);</code></pre>
+                </section>
+
+                <!-- API Endpoints -->
+                <section id="api-endpoints">
+                    <h2><span class="emoji">🔌</span>API Endpoints</h2>
+
+                    <h3>POST /api/analyze</h3>
+                    <p><span class="section-badge">Primary Endpoint</span></p>
+                    <p>Main coaching endpoint. Accepts audio, processes it, and returns evaluation.</p>
+                    <pre><code>Request Body:
+{
+  audioBase64: string,        // WAV file as base64
+  durationSeconds: number,    // 0.5-1200s
+  speechType: string,         // 'prepared' | 'table_topics' | ...
+  goal: string,               // 'reduce_fillers' | ...
+  preferMode?: string         // 'local' | 'cloud'
+}
+
+Response (200 OK):
+{
+  session: SessionRecord,
+  metrics: ObjectiveMetrics,
+  reconcileNote: string,
+  inferenceMode: string,
+  audioMeta: { durationSeconds: number }
+}</code></pre>
+
+                    <h3>GET /api/sessions</h3>
+                    <p>List all sessions with pagination.</p>
+
+                    <h3>GET /api/sessions/:id</h3>
+                    <p>Retrieve single session with full details.</p>
+
+                    <h3>GET /api/audio/:id</h3>
+                    <p>Serve session audio file (audio/wav).</p>
+
+                    <h3>GET /api/goals</h3>
+                    <p>List all goals (active, completed, suggested).</p>
+
+                    <h3>POST /api/goals</h3>
+                    <p>Create or update a goal.</p>
+
+                    <h3>GET /api/progress</h3>
+                    <p>Aggregate metrics across sessions with trends.</p>
+
+                    <h3>GET /api/health</h3>
+                    <p>Liveness check for orchestration (K8s, load balancers).</p>
+                </section>
+
+                <!-- Audio Processing -->
+                <section id="audio-pipeline">
+                    <h2><span class="emoji">🎵</span>Audio Processing Pipeline</h2>
+
+                    <h3>Stage 1: Browser-Side Conversion</h3>
+                    <p>MediaRecorder Blob (WebM/Ogg) → WAV Blob (16kHz mono, PCM-16)</p>
+                    <ul>
+                        <li>Decode using AudioContext API</li>
+                        <li>Resample to 16kHz</li>
+                        <li>Mix to mono if needed</li>
+                        <li>Encode as WAV with RIFF header</li>
+                    </ul>
+
+                    <h3>Stage 2: Server-Side Preparation</h3>
+                    <p>Base64 WAV → Normalized & Amplified WAV Buffer</p>
+                    <ul>
+                        <li>Validate RIFF header</li>
+                        <li>Parse fmt and data chunks</li>
+                        <li>Mix to mono and measure peak amplitude</li>
+                        <li>Amplify if quiet (&lt; 55% of target)</li>
+                        <li>Trim to 28 seconds max</li>
+                        <li>Write normalized WAV file</li>
+                    </ul>
+
+                    <h3>Stage 3: Quality Validation</h3>
+                    <ul>
+                        <li><code>isUsableTranscript()</code> — Check minimum word count (≥ 5 words)</li>
+                        <li><code>isPromptContaminated()</code> — Detect ASR instruction leakage</li>
+                        <li><code>stripPromptContamination()</code> — Clean output text</li>
+                    </ul>
+                </section>
+
+                <!-- Inference Engines -->
+                <section id="inference-engines">
+                    <h2><span class="emoji">🧠</span>Inference Engines</h2>
+
+                    <h3>Local Inference (Ollama)</h3>
+                    <p><span class="section-badge">Default Mode</span></p>
+                    <p><strong>Supported Models:</strong> gemma4:e4b (default), gemma4:12b (ASR)</p>
+
+                    <h4>Two-Stage Process:</h4>
+                    <ol>
+                        <li><strong>Transcription:</strong> Convert audio to text</li>
+                        <li><strong>Coaching Evaluation:</strong> Analyze transcript and generate feedback</li>
+                    </ol>
+
+                    <p><strong>Timeout:</strong> 180s (configurable)</p>
+                    <p><strong>Retry:</strong> 1 attempt on failure</p>
+
+                    <h3>Cloud Inference (Google Gemini)</h3>
+                    <p><span class="section-badge">Fallback Mode</span></p>
+                    <p><strong>Prerequisite:</strong> GOOGLE_API_KEY environment variable</p>
+                    <p><strong>Model:</strong> gemma-4-e4b-it</p>
+
+                    <h4>Unified Process:</h4>
+                    <p>Single API call combines transcription + coaching evaluation</p>
+                </section>
+
+                <!-- Deployment -->
+                <section id="deployment">
+                    <h2><span class="emoji">🚀</span>Deployment & Configuration</h2>
+
+                    <h3>Environment Variables</h3>
+                    <pre><code># Ollama Configuration
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=gemma4:latest
+OLLAMA_ASR_MODEL=gemma4:12b
+
+# Google AI Studio (optional)
+GOOGLE_API_KEY=&lt;your-api-key&gt;
+
+# Inference Mode
+INFERENCE_MODE=local              # 'local' | 'cloud' | 'auto'
+AI_TIMEOUT_MS=180000
+AI_MAX_RETRIES=1</code></pre>
+
+                    <h3>Local Development</h3>
+                    <ol>
+                        <li>Start Ollama: <code>ollama serve</code></li>
+                        <li>Pull model: <code>ollama pull gemma4:latest</code></li>
+                        <li>Install dependencies: <code>npm install</code></li>
+                        <li>Copy environment: <code>cp .env.example .env.local</code></li>
+                        <li>Run dev server: <code>npm run dev</code></li>
+                        <li>Open: <code>http://localhost:3000</code></li>
+                    </ol>
+
+                    <h3>Production Deployment</h3>
+                    <p>See ARCHITECTURE.md for Docker setup and K8s configuration.</p>
+                </section>
+
+                <!-- Error Handling -->
+                <section id="error-handling">
+                    <h2><span class="emoji">⚠️</span>Error Handling & Recovery</h2>
+
+                    <h3>Common Errors</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Error</th>
+                                <th>Cause</th>
+                                <th>Recovery</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>"Microphone access required"</td>
+                                <td>User denied permission</td>
+                                <td>Enable mic in browser settings</td>
+                            </tr>
+                            <tr>
+                                <td>"Audio is not RIFF/WAV"</td>
+                                <td>Unsupported codec</td>
+                                <td>Retry with different codec</td>
+                            </tr>
+                            <tr>
+                                <td>"model not found"</td>
+                                <td>Ollama model not installed</td>
+                                <td><code>ollama pull gemma4:12b</code></td>
+                            </tr>
+                            <tr>
+                                <td>"Connection refused"</td>
+                                <td>Ollama not running</td>
+                                <td>Start Ollama: <code>ollama serve</code></td>
+                            </tr>
+                            <tr>
+                                <td>"Timeout"</td>
+                                <td>Inference too slow</td>
+                                <td>Increase timeout or use chunked ASR</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Graceful Degradation</h3>
+                    <p>If local inference fails and cloud fallback is enabled, the system automatically retries with Google Gemini API.</p>
+                </section>
+
+                <!-- Performance -->
+                <section id="performance">
+                    <h2><span class="emoji">⚡</span>Performance Considerations</h2>
+
+                    <h3>Bottlenecks</h3>
+                    <ol>
+                        <li><strong>LLM Inference (dominant):</strong> 10-40s per session</li>
+                        <li><strong>Audio Processing:</strong> &lt; 500ms (browser) + &lt; 100ms (server)</li>
+                        <li><strong>Database Operations:</strong> &lt; 10ms for most queries</li>
+                    </ol>
+
+                    <h3>Optimization Strategies</h3>
+                    <ul>
+                        <li><strong>Chunked ASR:</strong> For audio &gt; 6s, split into 8s overlapping segments</li>
+                        <li><strong>Database Indexing:</strong> Add indexes on frequently queried columns</li>
+                        <li><strong>Frontend Optimization:</strong> Lazy load charts, paginate history (50 per page)</li>
+                        <li><strong>Caching:</strong> Cache transcripts for identical audio hashes (future)</li>
+                    </ul>
+                </section>
+
+                <!-- Security -->
+                <section id="security">
+                    <h2><span class="emoji">🔒</span>Security & Privacy</h2>
+
+                    <h3>Privacy by Design</h3>
+                    <ul>
+                        <li><strong>Local-First:</strong> Audio never leaves user's machine by default</li>
+                        <li><strong>Local Storage:</strong> Ollama runs locally, no cloud transmission required</li>
+                        <li><strong>Optional Cloud:</strong> Explicit opt-in with user-managed API keys</li>
+                    </ul>
+
+                    <h3>Input Validation</h3>
+                    <ul>
+                        <li>All requests validated with Zod schemas</li>
+                        <li>Audio buffer size checks (100 bytes min, 50MB max)</li>
+                        <li>Duration validation (0.5s - 20min)</li>
+                    </ul>
+
+                    <h3>Output Validation</h3>
+                    <ul>
+                        <li>LLM outputs validated against strict schemas</li>
+                        <li>Rubric scores clamped to valid ranges (1-5)</li>
+                        <li>Transcripts verified as verbatim (not rewritten)</li>
+                    </ul>
+
+                    <h3>Future Enhancements</h3>
+                    <ul>
+                        <li>Multi-user authentication (OAuth/SAML)</li>
+                        <li>AES-256 encryption for audio files at rest</li>
+                        <li>Audit logging and data access tracking</li>
+                        <li>Rate limiting and DDoS protection</li>
+                    </ul>
+                </section>
+
+                <!-- Version History -->
+                <section>
+                    <h2><span class="emoji">📝</span>Version History</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Date</th>
+                                <th>Changes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0.1.0</td>
+                                <td>2026-07-18</td>
+                                <td>Initial release</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <!-- Support Section -->
+                <section>
+                    <h2><span class="emoji">💬</span>Support & Resources</h2>
+                    <ul>
+                        <li><strong>GitHub Issues:</strong> Report bugs and request features</li>
+                        <li><strong>Documentation:</strong> See README.md for quick start</li>
+                        <li><strong>Ollama:</strong> <a href="https://ollama.ai" style="color: var(--primary-color); text-decoration: underline;">https://ollama.ai</a></li>
+                        <li><strong>Google Gemini API:</strong> <a href="https://ai.google.dev" style="color: var(--primary-color); text-decoration: underline;">https://ai.google.dev</a></li>
+                    </ul>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <a href="#" class="back-to-top" id="backToTop">↑</a>
+
+    <script>
+        // Back to top button
+        const backToTopButton = document.getElementById('backToTop');
+
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('show');
+            } else {
+                backToTopButton.classList.remove('show');
+            }
+        });
+
+        backToTopButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Highlight active section in TOC
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-list a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.style.color = 'var(--text-secondary)';
+                link.style.background = 'transparent';
+                if (link.getAttribute('href').slice(1) === current) {
+                    link.style.color = 'var(--primary-color)';
+                    link.style.background = 'rgba(16, 163, 127, 0.15)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
